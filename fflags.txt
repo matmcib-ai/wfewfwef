@@ -1,0 +1,86 @@
+-- ============================ FORCAGE DES FFLAGS ============================
+-- Liste et methode reprises de optimiser.txt (Kashi + Sxlvatore), isolees ici :
+-- que les FFlags, sans l optimizer graphique ni les interfaces qui allaient
+-- avec -- ton Titanz et ton hub s en chargent deja.
+--
+-- Le setter est cherche sous ses quatre noms connus : les executors ne
+-- l exposent pas tous pareil, et chercher un seul nom est la raison la plus
+-- frequente d un "aucun flag applique".
+
+local FFLAGS = {
+    -- FPS / planificateur
+    ["DFIntTaskSchedulerTargetFps"]              = "9999",
+    ["FFlagTaskSchedulerLimitTargetFpsToDevice"] = "False",
+    ["FFlagTaskSchedulerLimitTargetFpsTo2402"]   = "False",
+    ["FIntTaskSchedulerAutoThreadLimit"]         = "8",
+    ["DFIntTaskSchedulerJobInitThreads"]         = "8",
+    ["DFIntTaskSchedulerJobInGameThreads"]       = "8",
+    ["FIntRuntimeMaxNumOfThreads"]               = "1000000",
+    ["DFIntRuntimeConcurrency"]                  = "16",
+
+    -- prechargement
+    ["FFlagEnableTextureStreaming"]              = "True",
+    ["DFFlagEnableSoundPreloading"]              = "True",
+    ["DFFlagEnableMeshPreloading"]               = "True",
+    ["DFFlagEnableTexturePreloading"]            = "True",
+    ["DFIntAssetPreloading"]                     = "2147483647",
+    ["DFFlagEnablePreloadAvatarAssets"]          = "True",
+
+    -- demarrage rapide
+    ["DFFlagLuaAppFastGameStartup"]              = "True",
+    ["FFlagFastLuaAppStartup"]                   = "True",
+    ["FFlagEnableQuickGameLaunch"]               = "True",
+
+    -- telechargements / reseau
+    ["DFIntMaxConcurrentDownloads"]              = "64",
+    ["FIntContentProviderConcurrentDownloadCount"] = "64",
+
+    -- rendu
+    ["FFlagDisablePostProcess"]                  = "True",
+    ["FFlagDisablePostFx"]                       = "True",
+    ["FFlagDisableHQShadersLowEndDx112"]         = "True",
+    ["FFlagFastGPULightCulling3"]                = "True",
+    ["FFlagDebugForceFutureIsBrightPhase3"]      = "True",
+    ["FFlagDebugDisplayFPS"]                     = "True",
+
+    -- telemetrie coupee
+    ["FFlagDisableTelemetryOnJoin"]              = "True",
+    ["FFlagDebugDisableTelemetryV2Event"]        = "True",
+    ["FFlagDebugDisableTelemetryV2Stat"]         = "True",
+    ["FFlagEnableTelemetryProtocol"]             = "False",
+
+    -- luau
+    ["FFlagLuauCodegen"]                         = "True",
+    ["FFlagLuauCodegenFull"]                     = "True",
+}
+
+local function trouverSetter()
+    local noms = { "setfflag", "setfastflag", "set_fflag", "setFFlag" }
+    for _, n in ipairs(noms) do
+        local fn = rawget(getfenv(), n) or (getgenv and getgenv()[n])
+        if type(fn) == "function" then return fn, n end
+    end
+    return nil
+end
+
+task.spawn(function()
+    local setter, nom = trouverSetter()
+    if not setter then
+        warn("[FFLAGS] aucun setter trouve (setfflag / setfastflag / set_fflag / setFFlag)")
+        return
+    end
+
+    local ok, refuses = 0, {}
+    for flag, valeur in pairs(FFLAGS) do
+        if pcall(setter, flag, valeur) then
+            ok = ok + 1
+        else
+            refuses[#refuses + 1] = flag
+        end
+    end
+
+    print(("[FFLAGS] %d appliques via %s"):format(ok, nom))
+    if #refuses > 0 then
+        warn("[FFLAGS] refuses : " .. table.concat(refuses, ", "))
+    end
+end)
